@@ -11,35 +11,33 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install PKG Building Tools
+      - name: Organize PS3 Files
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git python3 make build-essential
-
-          # PS3 PKG araçlarını (make_package_npdrm vb.) içeren güvenli bir araç seti indiriyoruz
-          git clone https://github.com/nielseroberts/ps3tools.git || git clone https://github.com/Tustin/make_package_npdrm.git || true
+          # Dosyalar ana dizindeyse onları otomatik olarak PS3_GAME yapısına taşıyalım
+          mkdir -p PS3_GAME/USRDIR
           
-          # Alternatif olarak Python tabanlı hafif bir pkg oluşturucu da kullanabiliriz
-          # Şimdi repodaki PS3_GAME klasörünü paketleyeceğiz.
-
-      - name: Package to PS3 PKG
-        run: |
-          echo "PS3_GAME klasörü kontrol ediliyor..."
+          # EBOOT.BIN ve assetleri USRDIR içine taşı (eğer zaten USRDIR içindeyse atlar)
+          if [ -d "USRDIR" ]; then
+            echo "USRDIR zaten mevcut."
+          else
+            # Eğer dosyalar dağınıksa onları uygun yere taşıyoruz
+            mv EBOOT.BIN PS3_GAME/USRDIR/ 2>/dev/null || true
+            mv *.png PS3_GAME/ 2>/dev/null || true
+            mv *.jpg PS3_GAME/ 2>/dev/null || true
+            mv *.ttf PS3_GAME/PS3_GAME/USRDIR/ 2>/dev/null || true
+          fi
+          
+          # PARAM.SFO dosyasını kök PS3_GAME klasörüne alalım
+          mv PARAM.SFO PS3_GAME/ 2>/dev/null || true
+          
+          echo "Klasör yapısı son durum:"
           ls -la PS3_GAME/
           ls -la PS3_GAME/USRDIR/
-
-          # Eğer sistemde make_package yoksa bile Python ile zip/pkg yapısını simüle edebilir 
-          # veya standart make_package_npdrm aracını derleyip çalıştırabiliriz.
-          # Şimdilik çıktının nerede olacağını ayarlıyoruz:
-          mkdir -p output
-          
-          # Geçici olarak test paketi oluşturalım:
-          echo "Kitty Racer PKG oluşturma aşaması"
 
       - name: Upload PKG Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KittyRacer-PS3-PKG
+          name: KittyRacer-PS3-Files
           path: |
             PS3_GAME/
             
