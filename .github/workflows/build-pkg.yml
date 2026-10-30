@@ -3,6 +3,7 @@ name: Build PS3 PKG
 on:
   push:
     branches: [ main ]
+  workflow_dispatch: # Manuel olarak da çalıştırabilmek için ekledim
 
 jobs:
   build:
@@ -23,28 +24,35 @@ jobs:
           # Assetleri ve görselleri doğru yerlerine taşıyalım
           mv *.png PS3_GAME/ 2>/dev/null || true
           mv *.jpg PS3_GAME/ 2>/dev/null || true
-          mv *.ttf PS3_GAME/PS3_GAME/USRDIR/ 2>/dev/null || true
+          
+          # Dizin hatası düzeltildi (PS3_GAME/PS3_GAME yerine sadece USRDIR)
+          mv *.ttf PS3_GAME/USRDIR/ 2>/dev/null || true
           mv PARAM.SFO PS3_GAME/ 2>/dev/null || true
 
           echo "Klasör yapısı hazır:"
           ls -la PS3_GAME/
           ls -la PS3_GAME/USRDIR/
 
-      - name: Install Make Package Tools
+      - name: Install pkgtool (make_package_npdrm alternatifi)
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3 git
+          sudo apt-get install -y build-essential git cmake libssl-dev zlib1g-dev
           
-          # Doğrudan başka bir stabil kaynaktan klonlayalım (main dalı üzerinden)
-          git clone https://github.com/AniLeo/make_package_npdrm.git || git clone https://github.com/Tustin/make_package_npdrm.git
-          cd make_package_npdrm
+          # PS3Dev topluluğunun güncel pkgtool aracını indiriyoruz
+          git clone https://github.com/ps3dev/pkgtool.git
+          cd pkgtool
+          
+          # Derleme işlemi
           make
-          sudo cp make_package_npdrm /usr/local/bin/
+          
+          # Sisteme kuralım
+          sudo make install
 
       - name: Build PKG File
         run: |
-          # make_package_npdrm ile PKG dosyasını oluşturalım
-          make_package_npdrm PS3_GAME/ KITTYRACER.pkg
+          # pkgtool komutu ile PKG dosyasını oluşturalım
+          # Not: pkgtool bazen farklı parametreler isteyebilir ama genelde bu şekilde çalışır
+          pkgtool --sfo PS3_GAME/PARAM.SFO PS3_GAME/ KITTYRACER.pkg
           
           mkdir -p output_pkg
           mv KITTYRACER.pkg output_pkg/
@@ -54,4 +62,3 @@ jobs:
         with:
           name: KittyRacer-PS3-PKG
           path: output_pkg/*.pkg
-          
