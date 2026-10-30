@@ -29,27 +29,26 @@ jobs:
           ls -la PS3_GAME/
           ls -la PS3_GAME/USRDIR/
 
-      - name: Install Dependencies and Build Tool
+      - name: Install ps3-pkg-tool
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git cmake libssl-dev zlib1g-dev libtool autoconf automake pkg-config
+          sudo apt-get install -y python3 python3-pip git
           
-          # PS3Dev'in resmi ve güncel deposunu klonluyoruz
-          git clone https://github.com/ps3dev/PSL1GHT.git
-          cd PSL1GHT
+          # Güncel ve çalışan PS3 PKG aracını indiriyoruz
+          git clone https://github.com/rmuxnet/ps3-pkg-tool.git
+          cd ps3-pkg-tool
           
-          # İçindeki make_package_npdrm aracını derliyoruz
-          cd tools/make_package_npdrm
-          make
-          
-          # Sisteme kuralım
-          sudo cp make_package_npdrm /usr/local/bin/
+          # Gerekli Python kütüphanelerini kuruyoruz
+          pip install -r requirements.txt || true
 
       - name: Build PKG File
         run: |
-          # make_package_npdrm aracını kullanarak PKG oluşturuyoruz
-          make_package_npdrm PS3_GAME/ KITTYRACER.pkg
+          # ps3-pkg-tool ile PKG dosyasını oluşturuyoruz
+          # Bu araç, make_package_npdrm ile aynı işi yapar
+          cd ps3-pkg-tool
+          python3 ps3-pkg-tool.py --dir ../PS3_GAME --output ../KITTYRACER.pkg
           
+          cd ..
           mkdir -p output_pkg
           mv KITTYRACER.pkg output_pkg/
 
