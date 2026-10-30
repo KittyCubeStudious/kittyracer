@@ -13,15 +13,14 @@ jobs:
 
       - name: Prepare PS3 Game Folder
         run: |
-          # Klasör yapısını tam garantiye alalım
           mkdir -p PS3_GAME/USRDIR
           
-          # Eğer dosyalar ana dizindeyse USRDIR içine taşıyalım
+          # Dosyalar ana dizindeyse USRDIR içine taşıyalım
           if [ -f "EBOOT.BIN" ]; then
             mv EBOOT.BIN PS3_GAME/USRDIR/
           fi
           
-          # Assetleri ve görselleri taşı
+          # Assetleri ve görselleri doğru yerlerine taşıyalım
           mv *.png PS3_GAME/ 2>/dev/null || true
           mv *.jpg PS3_GAME/ 2>/dev/null || true
           mv *.ttf PS3_GAME/PS3_GAME/USRDIR/ 2>/dev/null || true
@@ -34,22 +33,21 @@ jobs:
       - name: Install Make Package Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y git build-essential python3
+          sudo apt-get install -y build-essential python3 git
           
-          # PS3 paketleme aracını (make_package_npdrm) klonlayıp derleyelim
-          git clone https://github.com/Tustin/make_package_npdrm.git
+          # Alternatif ve sorunsuz çalışan public repo üzerinden aracı çekiyoruz
+          git clone https://github.com/ESTDCU/make_package_npdrm.git || git clone https://github.com/AniLeo/make_package_npdrm.git
           cd make_package_npdrm
           make
           sudo cp make_package_npdrm /usr/local/bin/
 
       - name: Build PKG File
         run: |
-          # make_package_npdrm kullanarak .pkg dosyasını üretelim
-          # İçerik klasörünü ve output dosyasını belirtiyoruz
-          make_package_npdrm PS3_GAME/ KITTYRANCER.pkg
+          # make_package_npdrm ile PKG dosyasını oluşturalım
+          make_package_npdrm PS3_GAME/ KITTYRACER.pkg
           
           mkdir -p output_pkg
-          mv KITTYRANCER.pkg output_pkg/
+          mv KITTYRACER.pkg output_pkg/
 
       - name: Upload PKG Artifact
         uses: actions/upload-artifact@v4
