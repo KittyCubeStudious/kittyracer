@@ -33,12 +33,11 @@ jobs:
       - name: Install Make Package Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3 wget unzip
+          sudo apt-get install -y build-essential python3 git
           
-          # Git clone yerine doğrudan zip olarak indiriyoruz (kimlik doğrulama hatası vermez)
-          wget https://github.com/ESTDCU/make_package_npdrm/archive/refs/heads/master.zip
-          unzip master.zip
-          cd make_package_npdrm-master
+          # Doğrudan başka bir stabil kaynaktan klonlayalım (main dalı üzerinden)
+          git clone https://github.com/AniLeo/make_package_npdrm.git || git clone https://github.com/Tustin/make_package_npdrm.git
+          cd make_package_npdrm
           make
           sudo cp make_package_npdrm /usr/local/bin/
 
