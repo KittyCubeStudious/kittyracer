@@ -29,52 +29,46 @@ jobs:
           ls -la PS3_GAME/
           ls -la PS3_GAME/USRDIR/
 
-      - name: Install PKG Tool (Python)
+      - name: Install pkgtool (Make Package Npdrm)
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 python3-pip git
+          sudo apt-get install -y build-essential git cmake libssl-dev zlib1g-dev libtool autoconf automake pkg-config
           
-          # Python paketlerini kur
-          pip3 install cryptography pycryptodomex
+          # Kesin olarak var olan ve çalışan topluluk deposu
+          git clone https://github.com/ps3dev/PS3-PKG-Tools.git
+          cd PS3-PKG-Tools
           
-          # ps3dev topluluğunun aktif olarak kullandığı "ps3-pkg-tool" yerine 
-          # alternatif ve kesin var olan bir depo (ps3-pkg-tool yerine pkg_create)
-          git clone https://github.com/ps3dev/PSL1GHT.git || true
+          # Aracı derle
+          make
           
-          # Asıl PKG oluşturucu aracı indir (Kesin var olan)
-          git clone https://github.com/aldostools/PS3Tools.git || true
+          # Sisteme kur
+          sudo cp pkgtool /usr/local/bin/ || sudo cp make_package_npdrm /usr/local/bin/ || true
 
       - name: Build PKG File
         run: |
-          # Aldo'nun araçlarını kullanarak PKG oluştur
-          # (Bu depo kesinlikle vardır ve içinde pkg oluşturma araçları barındırır)
-          
-          if [ -d "PS3Tools" ]; then
-            echo "PS3Tools indirildi, PKG oluşturuluyor..."
-            # Paketleme işlemi için python tabanlı aracı çalıştır (varsa)
-            find PS3Tools -name "*.py" | head -n 5
+          # Aracı çalıştır (pkgtool veya make_package_npdrm)
+          if command -v pkgtool &> /dev/null; then
+            pkgtool --sfo PS3_GAME/PARAM.SFO PS3_GAME/ KITTYRACER.pkg
+          elif command -v make_package_npdrm &> /dev/null; then
+            make_package_npdrm PS3_GAME/ KITTYRACER.pkg
+          else
+            echo "HATA: PKG oluşturma aracı derlenemedi."
+            exit 1
           fi
           
-          # Eğer Aldo'nun araçları işe yaramazsa Python ile manuel PKG oluştur
-          pip3 install ps3-pkg-tool 2>/dev/null || pip3 install pkg-tool 2>/dev/null || true
-          
-          # Deneme 1: Python modülü ile
-          python3 -m ps3_pkg_tool PS3_GAME/ KITTYRACER.pkg 2>/dev/null || \
-          python3 -m pkg_tool PS3_GAME/ KITTYRACER.pkg 2>/dev/null || \
-          echo "Python modülü bulunamadı, alternatif aranıyor."
-          
-          # Çıktı dosyası oluştu mu kontrol et
-          if [ ! -f KITTYRACER.pkg ]; then
-             echo "PKG oluşturulamadı, boş bir test dosyası oluşturuluyor (Hata ayıklama için)"
-             touch KITTYRACER.pkg
+          # PKG dosyası gerçekten oluştu mu ve içi dolu mu kontrol et
+          if [ -f KITTYRACER.pkg ] && [ -s KITTYRACER.pkg ]; then
+            echo "Başarılı! PKG dosyası oluşturuldu."
+            mkdir -p output_pkg
+            mv KITTYRACER.pkg output_pkg/
+          else
+            echo "HATA: PKG dosyası boş veya oluşmadı! Klasör yapısını kontrol edin."
+            exit 1
           fi
-          
-          mkdir -p output_pkg
-          mv KITTYRACER.pkg output_pkg/ || true
 
       - name: Upload PKG Artifact
         uses: actions/upload-artifact@v4
         with:
           name: KittyRacer-PS3-PKG
           path: output_pkg/*.pkg
-          if-no-files-found: warn
+          if-no-files-found: error # Boşsa hata versin, boş dosya yüklemesin
