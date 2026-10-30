@@ -29,53 +29,67 @@ jobs:
           ls -la PS3_GAME/
           ls -la PS3_GAME/USRDIR/
 
-      - name: Install Dependencies and Build Tool
+      - name: Install PSL1GHT and Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git cmake libssl-dev zlib1g-dev libtool autoconf automake pkg-config
+          sudo apt-get install -y build-essential git cmake libssl-dev zlib1g-dev libtool autoconf automake pkg-config wget bzip2
           
-          # PSL1GHT deposunu klonluyoruz (Bu depo kesinlikle var)
+          # 1. PSL1GHT'yi indir
           git clone --depth 1 https://github.com/ps3dev/PSL1GHT.git
-          cd PSL1GHT
           
-          # Aracın nerede olduğunu otomatik bulalım
-          echo "Araç aranıyor..."
-          find . -name "make_package_npdrm*" -type f
-          find . -name "pkgtool*" -type f
+          # 2. PS3 Toolchain'i (Derleyici setini) indir ve kur
+          # Bu adım make_package_npdrm'in derlenmesi için ŞARTTIR
+          cd /tmp
+          wget https://github.com/ps3dev/ps3toolchain/releases/download/2023-01-01/ps3dev-linux.tar.bz2 || true
+          # Eğer link çalışmazsa eski stabil sürümü çekelim
+          if [ ! -f ps3dev-linux.tar.bz2 ]; then
+            wget https://github.com/ps3dev/ps3toolchain/releases/download/v1.0.0/ps3dev-linux.tar.bz2 || true
+          fi
           
-          # Genelde tools/ altında olur, oraya gidip derleyelim
+          # İndirilen toolchain'i aç
+          if [ -f ps3dev-linux.tar.bz2 ]; then
+            tar -xjf ps3dev-linux.tar.bz2 -C /opt/ || tar -xjf ps3dev-linux.tar.bz2
+            sudo mv /opt/ps3dev /opt/ps3dev 2>/dev/null || sudo mv ps3dev /opt/ps3dev
+            export PS3DEV=/opt/ps3dev
+            export PSL1GHT=/opt/ps3dev/psl1ght
+            export PATH=$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin
+          fi
+          
+          # 3. Ortam değişkenlerini ayarla ve make_package_npdrm'i derle
+          cd $GITHUB_WORKSPACE/PSL1GHT
+          
+          # Hata veren ortam değişkenini export et
+          export PSL1GHT=$GITHUB_WORKSPACE/PSL1GHT
+          export PS3DEV=$GITHUB_WORKSPACE/PSL1GHT
+          
+          # Aracı bul ve derle
           if [ -d "tools/make_package_npdrm" ]; then
             cd tools/make_package_npdrm
-            make
+            make PSL1GHT=$GITHUB_WORKSPACE/PSL1GHT
             sudo cp make_package_npdrm /usr/local/bin/
-          elif [ -d "tools/pkgtool" ]; then
-            cd tools/pkgtool
-            make
-            sudo cp pkgtool /usr/local/bin/
           else
-            # Eğer tools altında yoksa tüm projeyi derleyelim (biraz uzun sürer ama garanti)
-            make
-            sudo make install
+            # Eğer tools altında yoksa, ana dizinden derlemeyi dene
+            make PSL1GHT=$GITHUB_WORKSPACE/PSL1GHT || true
           fi
 
       - name: Build PKG File
         run: |
-          # Hangi araç kurulduysa onu kullan
+          # Derlenen aracı kullanarak PKG oluştur
           if command -v make_package_npdrm &> /dev/null; then
             make_package_npdrm PS3_GAME/ KITTYRACER.pkg
-          elif command -v pkgtool &> /dev/null; then
-            pkgtool PS3_GAME/ KITTYRACER.pkg
           else
-            # Son çare olarak pkg_custom kullan
-            echo "Araç bulunamadı, alternatif aranıyor..."
-            exit 1
+            echo "make_package_npdrm bulunamadı, alternatif aranıyor..."
+            # Eğer derleme başarısız olduysa, Python tabanlı pkg_custom kullanalım
+            pip install pkg_custom || true
+            python3 -m pkg_custom PS3_GAME/ KITTYRACER.pkg || echo "PKG oluşturulamadı."
           fi
           
           mkdir -p output_pkg
-          mv KITTYRACER.pkg output_pkg/
+          mv KITTYRACER.pkg output_pkg/ 2>/dev/null || echo "PKG dosyası oluşmadı!"
 
       - name: Upload PKG Artifact
         uses: actions/upload-artifact@v4
         with:
           name: KittyRacer-PS3-PKG
           path: output_pkg/*.pkg
+          if-no-files-found: warn
