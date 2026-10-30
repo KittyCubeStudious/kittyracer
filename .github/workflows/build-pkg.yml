@@ -3,7 +3,7 @@ name: Build PS3 PKG
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Manuel olarak da çalıştırabilmek için ekledim
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,16 +16,12 @@ jobs:
         run: |
           mkdir -p PS3_GAME/USRDIR
           
-          # Dosyalar ana dizindeyse USRDIR içine taşıyalım
           if [ -f "EBOOT.BIN" ]; then
             mv EBOOT.BIN PS3_GAME/USRDIR/
           fi
           
-          # Assetleri ve görselleri doğru yerlerine taşıyalım
           mv *.png PS3_GAME/ 2>/dev/null || true
           mv *.jpg PS3_GAME/ 2>/dev/null || true
-          
-          # Dizin hatası düzeltildi (PS3_GAME/PS3_GAME yerine sadece USRDIR)
           mv *.ttf PS3_GAME/USRDIR/ 2>/dev/null || true
           mv PARAM.SFO PS3_GAME/ 2>/dev/null || true
 
@@ -33,26 +29,26 @@ jobs:
           ls -la PS3_GAME/
           ls -la PS3_GAME/USRDIR/
 
-      - name: Install pkgtool (make_package_npdrm alternatifi)
+      - name: Install Dependencies and Build Tool
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git cmake libssl-dev zlib1g-dev
+          sudo apt-get install -y build-essential git cmake libssl-dev zlib1g-dev libtool autoconf automake pkg-config
           
-          # PS3Dev topluluğunun güncel pkgtool aracını indiriyoruz
-          git clone https://github.com/ps3dev/pkgtool.git
-          cd pkgtool
+          # PS3Dev'in resmi ve güncel deposunu klonluyoruz
+          git clone https://github.com/ps3dev/PSL1GHT.git
+          cd PSL1GHT
           
-          # Derleme işlemi
+          # İçindeki make_package_npdrm aracını derliyoruz
+          cd tools/make_package_npdrm
           make
           
           # Sisteme kuralım
-          sudo make install
+          sudo cp make_package_npdrm /usr/local/bin/
 
       - name: Build PKG File
         run: |
-          # pkgtool komutu ile PKG dosyasını oluşturalım
-          # Not: pkgtool bazen farklı parametreler isteyebilir ama genelde bu şekilde çalışır
-          pkgtool --sfo PS3_GAME/PARAM.SFO PS3_GAME/ KITTYRACER.pkg
+          # make_package_npdrm aracını kullanarak PKG oluşturuyoruz
+          make_package_npdrm PS3_GAME/ KITTYRACER.pkg
           
           mkdir -p output_pkg
           mv KITTYRACER.pkg output_pkg/
